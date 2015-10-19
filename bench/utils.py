@@ -13,7 +13,6 @@ import multiprocessing
 from distutils.spawn import find_executable
 import pwd, grp
 
-
 class PatchError(Exception):
 	pass
 
@@ -614,5 +613,40 @@ def log_line(data, stream):
 		return sys.stderr.write(data)
 	return sys.stdout.write(data)
 
+def get_output(*cmd):
+	s = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+	out = s.stdout.read()
+	s.stdout.close()
+	return out
 
 FRAPPE_VERSION = get_current_frappe_version()
+
+def before_update(bench, requirements):
+	validate_pillow_dependencies(bench, requirements)
+
+def validate_pillow_dependencies(bench, requirements):
+	if not requirements:
+		return
+
+	try:
+		pip = os.path.join(bench, 'env', 'bin', 'pip')
+		exec_cmd("{pip} install Pillow".format(pip=pip))
+
+	except CommandFailedError:
+		distro = platform.linux_distribution()
+		distro_name = distro[0].lower()
+		if "centos" in distro_name or "fedora" in distro_name:
+			print "Please install these dependencies using the command:"
+			print "sudo yum install libtiff-devel libjpeg-devel libzip-devel freetype-devel lcms2-devel libwebp-devel tcl-devel tk-devel"
+
+			raise
+
+		elif "ubuntu" in distro_name or "elementary os" in distro_name or "debian" in distro_name:
+			print "Please install these dependencies using the command:"
+
+			if "ubuntu" in distro_name and distro[1]=="12.04":
+				print "sudo apt-get install -y libtiff4-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.5-dev tk8.5-dev python-tk"
+			else:
+				print "sudo apt-get install -y libtiff5-dev libjpeg8-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python-tk"
+
+			raise
